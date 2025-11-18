@@ -230,36 +230,44 @@ class ProxyChecker:
         
         # 显示每个目标的结果
         for target, results in target_groups.items():
-            # 获取目标的显示名称（去掉端口部分）
-            display_target = target.split(':')[0] if ':' in target else target
+            # 获取目标的显示名称和端口
+            if ':' in target:
+                display_target, port = target.split(':', 1)
+                display_target_with_port = f"{display_target}:{port}"
+            else:
+                display_target = target
+                display_target_with_port = f"{target}:{self.config.get('default_port', 443)}"
             
             # 判断目标是IP还是域名
             if self.is_valid_ip(display_target):
                 # IP地址
-                message += f"📍 IP: {display_target}\n"
+                message += f"📍 IP: {display_target_with_port}\n"
             else:
                 # 域名
-                message += f"🌐 域名: {display_target}\n"
+                message += f"🌐 域名: {display_target_with_port}\n"
             
             # 显示每个IP的结果
             for result in results:
                 if result['success']:
-                    status = "✅ 正常"
+                    status = "🟢 正常"
                     details = f"{result['response_time']}ms"
-                    message += f"- {result['ip']}:{result['port']} {status} - {details}\n"
+                    if result['colo']:
+                        details += f" | {result['colo']}"
+                    message += f"  • {result['ip']}:{result['port']} {status} - {details}\n"
                 else:
-                    status = "❌ 失败"
-                    message += f"- {result['ip']}:{result['port']} {status} - {result['message']}\n"
+                    status = "🔴 失败"
+                    # 错误消息换行显示
+                    error_message = result['message'].replace('. ', '.\n    ')
+                    message += f"  • {result['ip']}:{result['port']} {status}\n    原因: {error_message}\n"
             
             message += "\n"
         
         # 检查配置
-        message += f"🔧 检查配置\n"
-        message += f"   ├ 触发方式: {'手动触发' if self.github_event_name == 'workflow_dispatch' else '定时任务'}\n"
-        # 从API URL中去掉路径部分，只显示域名
-        api_base = self.config['check_api'].split('/check')[0] if '/check' in self.config['check_api'] else self.config['check_api']
-        message += f"   ├ 检测API: {api_base}\n"
-        message += f"   └ 默认端口: {self.config.get('default_port', 443)}"
+        message += f"⚙️ 检查配置\n"
+        message += f"  ├ 触发方式: {'🔄 手动触发' if self.github_event_name == 'workflow_dispatch' else '⏰ 定时任务'}\n"
+        # 完整显示API地址
+        message += f"  ├ 检测API: {self.config['check_api']}\n"
+        message += f"  └ 默认端口: {self.config.get('default_port', 443)}"
         
         return message
     
