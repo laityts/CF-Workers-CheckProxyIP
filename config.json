@@ -2,5 +2,6 @@
   "check_api": "https://check.proxyip.eytan.netlib.re",
   "send_notification": "failure-only",
   "timeout": 30,
-  "max_retries": 3
+  "max_retries": 2,
+  "default_port": 443
 }
