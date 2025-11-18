@@ -4,6 +4,7 @@ import socket
 import json
 from typing import List, Dict
 from datetime import datetime
+import pytz
 
 class ProxyChecker:
     def __init__(self):
@@ -210,15 +211,16 @@ class ProxyChecker:
     
     def format_message(self) -> str:
         """格式化通知消息"""
-        # 获取当前时间
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # 获取当前北京时间
+        beijing_tz = pytz.timezone('Asia/Shanghai')
+        current_time = datetime.now(beijing_tz).strftime("%Y-%m-%d %H:%M:%S")
         
         if self.github_event_name == 'workflow_dispatch':
             message = f"🔄 手动检查 - 代理服务器状态\n"
         else:
             message = f"⏰ 定时检查 - 代理服务器状态\n"
         
-        message += f"⏱️ 检查时间: {current_time}\n\n"
+        message += f"⏱️ 检查时间: {current_time} (北京时间)\n\n"
         
         # 按目标分组结果
         target_groups = {}
@@ -251,23 +253,18 @@ class ProxyChecker:
                 if result['success']:
                     status = "🟢 正常"
                     details = f"{result['response_time']}ms"
-                    if result['colo']:
-                        details += f" | {result['colo']}"
-                    message += f"  • {result['ip']}:{result['port']} {status} - {details}\n"
+                    message += f"  • {result['ip']}:{result['port']} {status} - {details}\n\n"
                 else:
                     status = "🔴 失败"
                     # 错误消息换行显示
                     error_message = result['message'].replace('. ', '.\n    ')
-                    message += f"  • {result['ip']}:{result['port']} {status}\n    原因: {error_message}\n"
-            
-            message += "\n"
+                    message += f"  • {result['ip']}:{result['port']} {status}\n    原因: {error_message}\n\n"
         
         # 检查配置
         message += f"⚙️ 检查配置\n"
         message += f"  ├ 触发方式: {'🔄 手动触发' if self.github_event_name == 'workflow_dispatch' else '⏰ 定时任务'}\n"
         # 完整显示API地址
-        message += f"  ├ 检测API: {self.config['check_api']}\n"
-        message += f"  └ 默认端口: {self.config.get('default_port', 443)}"
+        message += f"  └ 检测API: {self.config['check_api']}"
         
         return message
     
