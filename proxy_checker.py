@@ -25,7 +25,8 @@ class ProxyChecker:
             "check_api": "https://check.proxyip.eytan.netlib.re",
             "send_notification": "failure-only",
             "timeout": 30,
-            "max_retries": 2
+            "max_retries": 2,
+            "default_port": 443  # 默认端口
         }
         
         try:
@@ -59,6 +60,43 @@ class ProxyChecker:
         
         print(f"加载代理列表: {targets}")
         return targets
+    
+    def normalize_target(self, target: str) -> tuple:
+        """规范化目标，处理默认端口"""
+        target = target.strip()
+        if not target:
+            return None, None
+        
+        # 检查是否包含端口
+        if ':' in target:
+            # 处理IPv6地址
+            if target.startswith('['):
+                # IPv6地址格式 [::1]:8080
+                end_bracket = target.find(']')
+                if end_bracket == -1:
+                    print(f"无效的IPv6格式: {target}")
+                    return None, None
+                host = target[1:end_bracket]
+                if end_bracket + 1 < len(target) and target[end_bracket + 1] == ':':
+                    port_str = target[end_bracket + 2:]
+                else:
+                    port_str = str(self.config.get('default_port', 443))
+            else:
+                # IPv4或域名格式
+                parts = target.split(':', 1)
+                host = parts[0]
+                port_str = parts[1] if len(parts) > 1 else str(self.config.get('default_port', 443))
+        else:
+            # 没有端口，使用默认端口
+            host = target
+            port_str = str(self.config.get('default_port', 443))
+        
+        try:
+            port = int(port_str)
+            return host, port
+        except ValueError:
+            print(f"无效的端口: {port_str}")
+            return None, None
     
     def resolve_domain(self, domain: str) -> List[str]:
         """解析域名获取所有IP地址"""
@@ -149,33 +187,8 @@ class ProxyChecker:
         """处理单个目标（域名或IP）"""
         results = []
         
-        target = target.strip()
-        if not target:
-            return results
-            
-        if ':' not in target:
-            print(f"无效的目标格式，缺少端口: {target}")
-            return results
-            
-        try:
-            # 分离主机和端口
-            if target.startswith('['):
-                # IPv6地址处理
-                end_bracket = target.find(']')
-                if end_bracket == -1:
-                    print(f"无效的IPv6格式: {target}")
-                    return results
-                host = target[1:end_bracket]
-                port_str = target[end_bracket+2:]  # 跳过]: 
-            else:
-                host, port_str = target.split(':', 1)
-            
-            port = int(port_str)
-        except ValueError:
-            print(f"无效的端口: {port_str}")
-            return results
-        except Exception as e:
-            print(f"解析目标 {target} 时出错: {e}")
+        host, port = self.normalize_target(target)
+        if host is None or port is None:
             return results
         
         # 判断是域名还是IP
@@ -218,7 +231,7 @@ class ProxyChecker:
         # 先显示正常的，再显示失败的
         for target, results in target_groups.items():
             # 判断目标是IP还是域名
-            host_part = target.split(':')[0]
+            host_part = target.split(':')[0] if ':' in target else target
             if self.is_valid_ip(host_part):
                 # IP地址
                 message += f"📍 *IP*: `{target}`\n"
@@ -257,7 +270,8 @@ class ProxyChecker:
         
         message += f"🔧 *检查配置*\n"
         message += f"   ├ 触发方式: `{'手动触发' if self.github_event_name == 'workflow_dispatch' else '定时任务'}`\n"
-        message += f"   └ 检测API: `{self.config['check_api']}`"
+        message += f"   ├ 检测API: `{self.config['check_api']}`\n"
+        message += f"   └ 默认端口: `{self.config.get('default_port', 443)}`"
         
         return message
     
@@ -305,6 +319,7 @@ class ProxyChecker:
         print(f"检测API: {self.config['check_api']}")
         print(f"通知设置: {self.config['send_notification']}")
         print(f"触发方式: {self.github_event_name}")
+        print(f"默认端口: {self.config.get('default_port', 443)}")
         print("=" * 50)
         
         if not self.proxy_targets:
