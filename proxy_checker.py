@@ -22,7 +22,7 @@ class ProxyChecker:
     def load_config(self) -> Dict:
         """加载配置文件"""
         default_config = {
-            "check_api": "https://check.proxyip.eytan.netlib.re/check",
+            "check_api": "https://check.proxyip.eytan.netlib.re",
             "send_notification": "failure-only",
             "timeout": 30,
             "max_retries": 2,
@@ -129,7 +129,7 @@ class ProxyChecker:
         for attempt in range(max_retries):
             try:
                 proxy_str = f"{ip}:{port}"
-                api_url = f"{self.config['check_api']}?proxyip={proxy_str}"
+                api_url = f"{self.config['check_api']}/check?proxyip={proxy_str}"
                 
                 print(f"检查代理: {proxy_str} (尝试 {attempt + 1}/{max_retries})")
                 response = requests.get(api_url, timeout=timeout)
