@@ -22,11 +22,11 @@ class ProxyChecker:
     def load_config(self) -> Dict:
         """加载配置文件"""
         default_config = {
-            "check_api": "https://check.proxyip.eytan.netlib.re",
+            "check_api": "https://check.proxyip.eytan.netlib.re/check",
             "send_notification": "failure-only",
             "timeout": 30,
             "max_retries": 2,
-            "default_port": 443  # 默认端口
+            "default_port": 443
         }
         
         try:
@@ -129,7 +129,7 @@ class ProxyChecker:
         for attempt in range(max_retries):
             try:
                 proxy_str = f"{ip}:{port}"
-                api_url = f"{self.config['check_api']}/check?proxyip={proxy_str}"
+                api_url = f"{self.config['check_api']}?proxyip={proxy_str}"
                 
                 print(f"检查代理: {proxy_str} (尝试 {attempt + 1}/{max_retries})")
                 response = requests.get(api_url, timeout=timeout)
@@ -214,11 +214,11 @@ class ProxyChecker:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         if self.github_event_name == 'workflow_dispatch':
-            message = f"🔄 *手动检查 - 代理服务器状态*\n"
+            message = f"🔄 手动检查 - 代理服务器状态\n"
         else:
-            message = f"⏰ *定时检查 - 代理服务器状态*\n"
+            message = f"⏰ 定时检查 - 代理服务器状态\n"
         
-        message += f"⏱️ *检查时间*: `{current_time}`\n\n"
+        message += f"⏱️ 检查时间: {current_time}\n\n"
         
         # 按目标分组结果
         target_groups = {}
@@ -228,50 +228,38 @@ class ProxyChecker:
                 target_groups[target] = []
             target_groups[target].append(result)
         
-        # 先显示正常的，再显示失败的
+        # 显示每个目标的结果
         for target, results in target_groups.items():
+            # 获取目标的显示名称（去掉端口部分）
+            display_target = target.split(':')[0] if ':' in target else target
+            
             # 判断目标是IP还是域名
-            host_part = target.split(':')[0] if ':' in target else target
-            if self.is_valid_ip(host_part):
+            if self.is_valid_ip(display_target):
                 # IP地址
-                message += f"📍 *IP*: `{target}`\n"
+                message += f"📍 IP: {display_target}\n"
             else:
                 # 域名
-                message += f"🌐 *域名*: `{target}`\n"
+                message += f"🌐 域名: {display_target}\n"
             
-            # 先显示正常的
+            # 显示每个IP的结果
             for result in results:
                 if result['success']:
+                    status = "✅ 正常"
                     details = f"{result['response_time']}ms"
-                    if result['colo']:
-                        details += f" | {result['colo']}"
-                    message += f"   └ `{result['ip']}:{result['port']}` ✅ 正常 - {details}\n"
-            
-            # 再显示失败的
-            for result in results:
-                if not result['success']:
-                    message += f"   └ `{result['ip']}:{result['port']}` ❌ 失败 - {result['message']}\n"
+                    message += f"- {result['ip']}:{result['port']} {status} - {details}\n"
+                else:
+                    status = "❌ 失败"
+                    message += f"- {result['ip']}:{result['port']} {status} - {result['message']}\n"
             
             message += "\n"
         
-        # 统计信息
-        total = len(self.results)
-        success_count = sum(1 for r in self.results if r['success'])
-        failure_count = total - success_count
-        
-        # 成功率
-        success_rate = (success_count / total * 100) if total > 0 else 0
-        
-        message += f"📊 *统计信息*\n"
-        message += f"   ├ 总共: `{total}` 个IP\n"
-        message += f"   ├ 正常: `{success_count}` 个\n"
-        message += f"   ├ 失败: `{failure_count}` 个\n"
-        message += f"   └ 成功率: `{success_rate:.1f}%`\n\n"
-        
-        message += f"🔧 *检查配置*\n"
-        message += f"   ├ 触发方式: `{'手动触发' if self.github_event_name == 'workflow_dispatch' else '定时任务'}`\n"
-        message += f"   ├ 检测API: `{self.config['check_api']}`\n"
-        message += f"   └ 默认端口: `{self.config.get('default_port', 443)}`"
+        # 检查配置
+        message += f"🔧 检查配置\n"
+        message += f"   ├ 触发方式: {'手动触发' if self.github_event_name == 'workflow_dispatch' else '定时任务'}\n"
+        # 从API URL中去掉路径部分，只显示域名
+        api_base = self.config['check_api'].split('/check')[0] if '/check' in self.config['check_api'] else self.config['check_api']
+        message += f"   ├ 检测API: {api_base}\n"
+        message += f"   └ 默认端口: {self.config.get('default_port', 443)}"
         
         return message
     
@@ -338,7 +326,7 @@ class ProxyChecker:
         print("\n" + "=" * 50)
         print("检查完成!")
         print("=" * 50)
-        print(message.replace('*', '').replace('`', ''))
+        print(message)
         
         # 决定是否发送通知
         if self.should_send_notification():
