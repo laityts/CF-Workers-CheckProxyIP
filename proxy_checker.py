@@ -3,8 +3,7 @@ import requests
 import socket
 import json
 from typing import List, Dict
-from datetime import datetime
-import pytz
+from datetime import datetime, timezone, timedelta
 
 class ProxyChecker:
     def __init__(self):
@@ -211,9 +210,10 @@ class ProxyChecker:
     
     def format_message(self) -> str:
         """格式化通知消息"""
-        # 获取当前北京时间
-        beijing_tz = pytz.timezone('Asia/Shanghai')
-        current_time = datetime.now(beijing_tz).strftime("%Y-%m-%d %H:%M:%S")
+        # 获取当前北京时间 (UTC+8)
+        utc_now = datetime.now(timezone.utc)
+        beijing_time = utc_now.astimezone(timezone(timedelta(hours=8)))
+        current_time = beijing_time.strftime("%Y-%m-%d %H:%M:%S")
         
         if self.github_event_name == 'workflow_dispatch':
             message = f"🔄 手动检查 - 代理服务器状态\n"
