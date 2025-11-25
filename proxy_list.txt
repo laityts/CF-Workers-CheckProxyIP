@@ -1,3 +1,2 @@
-tw.eytan.netlib.re:12485
+#tw.eytan.netlib.re
 se.eytan.netlib.re:443
-125.227.162.252:12486
