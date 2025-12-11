@@ -1,0 +1,5 @@
+# wrangler.toml
+name = 'checkproxyip'
+main = "_worker.js"
+compatibility_date = "2025-11-21"
+keep_vars = true
